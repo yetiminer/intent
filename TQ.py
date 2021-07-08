@@ -11,13 +11,21 @@ class TillQueue():
         
     def __repr__(self):
         return str(self.q)
+        
+    def __eq__(self,other):
+        if not isinstance(other,TillQueue):
+            return NotImplementedError
+        return all((self.name==other.name,self.q==other.q,
+        self.departure_rate==other.departure_rate,self.arrival_rate==other.arrival_rate))
     
     @property
     def len(self):
         return len(self.q)
         
-    def add(self,person):
-        self.q.append(person)
+    def add(self,pt):
+        person,time=pt
+        self.q.append((person,time))
+        
         
     def serve(self,num=None):
         x=[]
@@ -26,17 +34,20 @@ class TillQueue():
             for i in range(num):
                 try:
                     x+=[self.q.popleft()]
+                    
                 except IndexError:
                     x+=[]
+                    
         return x
         
     def purge(self):
         exit_list=list(self.q)
-        self.q.clear()
+        self.q.clear()        
         return exit_list
     
     def exit_queue(self,person):
         self.q.remove(person)
+        
         
     def where_is(self,cust_id):
         for idx,cid in enumerate(self.q):
