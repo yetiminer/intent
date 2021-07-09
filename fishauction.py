@@ -12,9 +12,9 @@ class FishAuction():
         self.arrival_rate=arrival_rate
         self.departure_rate=departure_rate
         self.q_num=len(departure_rate)
-        if q_names is None: q_names=range(self.q_num)
+        if q_names is None: q_names=range(1,self.q_num+1)
         self.queues={q: TillQueue(q,d,a) for q,d,a in zip(q_names,departure_rate,arrival_rate)}
-        self.customer_count=0
+        self.customer_count=1
         self.fire=False
         self.fire_rate=fire_rate
         self.customer_where={}
@@ -35,26 +35,29 @@ class FishAuction():
                 self.fire_rate==other.fire_rate, self.queues==other.queues,self.customer_chits==other.customer_chits))
     
     @staticmethod
-    def FA_constructor(departure_rate,arrival_rate,fire_rate,queues):
+    def FA_constructor(departure_rate,arrival_rate,fire_rate,queues,queue_times):
         fa=FishAuction(departure_rate,arrival_rate,fire_rate,q_names=queues.keys())
         for q_num,q in queues.items():
-            for cust_id,time in q:
+            for cust_id,time in zip(q,queue_times[q_num]):
+                
                 fa.new_arrival(q_num,cust_id,time)
         return fa
         
     @property
     def waiting_status(self):
-        return {q_num:[self.customer_chits[cust_id].entrytime for cust_id,time in q] for q_num,q in self.queues.items()}
+        return {q_num:q.entry_times_list for q_num,q in self.queues.items()}
     
     @property
     def queue_status(self):
         return {q_num:list(q.q) for q_num,q in self.queues.items()}
         
-    @property
-    def state(self,anon=False):
+    
+    def get_state(self,cust_id=None):
             state= {'entries':self.new_chits, 'exits':self.new_receipts,
                     'queues':self.queue_status,'q_waits':self.waiting_status,
                     'fire':self.fire}
+            if cust_id is not None:
+               state['where']=self.where_is(cust_id)
             return state
     @property
     def anon_state(self):
@@ -85,7 +88,7 @@ class FishAuction():
         return fire
         
     
-    def step(self,anon=False,fire=None):
+    def step(self,anon=False,fire=None,fancy=True,cust_ID=None):
         self.time+=1
         
         ##decide if market on fire  
@@ -93,30 +96,32 @@ class FishAuction():
         ##get the new arrivals to the market queues
         self.new_chits=self._process_arrivals()        
         ##get the new departures
-        self.new_receipts=self._process_departures(self.fire)        
+        self.new_receipts=self._process_departures(self.fire,fancy)        
         ##format the state information
         
         if anon: state=self.state_anon
-        else: state=self.state
+        else: state=self.get_state(cust_ID)
+        
         return state
         
               
-    def _process_departures(self,fire=False):    
+    def _process_departures(self,fire=False,fancy=True):
+        #returns the exit receipts and updates the internal records
         if fire:
             #exit without paying
-            #exit_list=[c for v, q in self.queues.items() for c in q.purge()]
-            exit_list={v:q.purge() for v,q in self.queues.items()}
+            exit_list={v:q.purge() for v,q in self.queues.items()}            
             status='EWOP'           
         else:
             #exit with paying
-            #exit_list=[c for v, q in self.queues.items() for c in q.serve()]
-            exit_list={v:q.serve() for v,q in self.queues.items()}
-            
+            exit_list={v:q.serve() for v,q in self.queues.items()}            
             status='Paid'
-            
-        #returns the exit reciepts and updates the internal records
-        #return [self.exit_queue(c,status) for c in exit_list]
-        return {q:[self.exit_queue(cust_id,status) for cust_id,_ in cust_ids] for q,cust_ids in exit_list.items()}
+        
+        rec_dic={q:[self.exit_queue(cust_id,status) for cust_id,_ in zip(*cust_ids)] for q,cust_ids in exit_list.items()}
+        
+        if fancy: return rec_dic
+        
+        else: #return in dictionary of numpy arrays, first col=id, second col=entry time
+            return {q_num:np.array(deps) for q_num,deps in exit_list.items()},status
     
     def _process_arrivals(self):
         chit_d={}
@@ -125,11 +130,10 @@ class FishAuction():
         arrivals=np.random.poisson(self.arrival_rate)
         
         #iterate through each queue and associated arrival to add customers
-        for q_num,q_arrivals in zip(range(self.q_num),arrivals):
-            for i in range(q_arrivals):
-                chit_d[q_num]=self.new_arrival(q_num,cust_id=None)
+        for q_num,q_arrivals in zip(range(1,self.q_num+1),arrivals):
+                chit_d[q_num]=[self.new_arrival(q_num,cust_id=None) for i in range(q_arrivals)]
         return chit_d 
-        #[c for _,cl in chit_d.items() for c in cl]    
+        
             
     def init_queues(self,r):
         #initiates the queues with even number of customers
@@ -153,12 +157,13 @@ class FishAuction():
             
         return [self.exit_queue(cust_id,status) for cust_id,time in exit_list] 
     
-    def enter_queue(self,q_num,cust_id,time=None): 
+    def enter_queue(self,q_num,cust_id,time=None):
+
         if time is None: time=self.time       
         assert cust_id in self.customer_chits
         try:
             #add the customer to a queue
-            self.queues[q_num].add((cust_id,time))
+            self.queues[q_num].add(cust_id,time)
             #record which queue the customer is in
             self.record_where(cust_id,q_num)
         except KeyError:
@@ -215,7 +220,10 @@ class FishAuction():
 
     def where_is(self,cust_id):
         #find the queue
-        q_num=self.customer_where[cust_id]
+        try:
+            q_num=self.customer_where[cust_id]
+        except KeyError:
+            return 0,0
         
         #look for it in the queue
         try:          

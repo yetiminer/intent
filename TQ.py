@@ -6,6 +6,7 @@ class TillQueue():
     def __init__(self,name,departure_rate,arrival_rate):
         self.name=name
         self.q=deque()
+        self.entry_times={}
         self.departure_rate=departure_rate
         self.arrival_rate=arrival_rate #for reference
         
@@ -22,9 +23,21 @@ class TillQueue():
     def len(self):
         return len(self.q)
         
-    def add(self,pt):
-        person,time=pt
-        self.q.append((person,time))
+    def add(self,cust_id,time):        
+        self.q.append(cust_id)
+        assert cust_id not in self.entry_times
+        self.entry_times[cust_id]=time
+    
+    @property
+    def entry_times_list(self):
+        #could make use of new python functionality that orders dicts
+        return list(self.entry_times.values())
+        #return [self.entry_times[cust_id] for cust_id in self.q]
+    
+    def __entry_time_list(self,list_like):
+        #removes the items 
+        return [self.entry_times.pop(cust_id) for cust_id in list_like]
+        
         
         
     def serve(self,num=None):
@@ -33,20 +46,27 @@ class TillQueue():
         if num>0:
             for i in range(num):
                 try:
-                    x+=[self.q.popleft()]
+                    
+                    x.append(self.q.popleft())
+                    
                     
                 except IndexError:
                     x+=[]
-                    
-        return x
+        #pop the times from the waiting dictionary
+        exit_times=self.__entry_time_list(x)
+        
+        return x,exit_times
         
     def purge(self):
         exit_list=list(self.q)
-        self.q.clear()        
-        return exit_list
+        self.q.clear()
+        exit_list_times=self.__entry_time_list(exit_list)
+        
+        return exit_list,exit_list_times
     
     def exit_queue(self,person):
         self.q.remove(person)
+        self.entry_times.pop(person)
         
         
     def where_is(self,cust_id):
