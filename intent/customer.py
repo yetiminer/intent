@@ -1,5 +1,5 @@
-from fishauction import FishAuction, FA_tests
-from TQ import TillQueue
+from intent.fishauction import FishAuction, FA_tests
+from intent.TQ import TillQueue
 import gym
 from gym.spaces import Space, MultiBinary, Discrete
 import numpy as np

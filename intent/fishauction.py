@@ -1,7 +1,7 @@
 from collections import deque, namedtuple
 import numpy as np
 from random import random
-from TQ import TillQueue
+from intent.TQ import TillQueue
 
 Chit=namedtuple('Chit',['name','entrytime'])
 Receipt=namedtuple('Receipt',['name','entrytime','exittime','status'])

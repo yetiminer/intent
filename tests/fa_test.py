@@ -1,4 +1,4 @@
-from fishauction import FishAuction
+from intent.fishauction import FishAuction
 from pytest import approx
 
 def test_clone():

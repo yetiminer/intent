@@ -1,5 +1,5 @@
 import numpy as np
-from customer  import Customer
+from intent.customer  import Customer
 
 departure_rate=[2,2]
 arrival_rate=[2,2]
