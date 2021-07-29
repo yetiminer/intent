@@ -39,11 +39,11 @@ class FishMarketLight():
         self.departures=np.zeros(self.dims)
         
         self.time=0
-        self.fire=np.zeros(self.instances)
+        self.fire=np.zeros((self.instances,1))
         self.fire_rate=fire_rate
-        self.exit=np.zeros(self.instances)
-        self.EWOP=np.zeros(self.instances)
-        self.inqueue=np.zeros(self.instances)
+        self.exit=np.zeros((self.instances,1))
+        self.EWOP=np.zeros((self.instances,1))
+        self.inqueue=np.zeros((self.instances,1))
             
     def __inst_array(self,arrival_rate=None):
         #array form of the market
@@ -137,7 +137,7 @@ class FishMarketLight():
         
     def decide_fire(self):
         # a process to decide when it is on fire. 
-        fire=np.zeros(self.instances)
+        fire=np.zeros((self.instances,1))
         fire=np.random.random(self.instances)<self.fire_rate
 
         return fire.flatten()
@@ -202,15 +202,15 @@ class FishMarketLight():
         left_queue=(self.position<0).any(axis=1)
         
         #fill the EWOPs according to fire.
-        self.EWOP=np.zeros(self.instances)
+        self.EWOP=np.zeros((self.instances,1))
         self.EWOP[np.logical_and(self.fire,left_queue)]=1
         
         #fill the exits according to not EWOP and left_queue
-        self.Exit=np.zeros(self.instances)
+        self.Exit=np.zeros((self.instances,1))
         self.Exit[np.logical_and(~self.fire,left_queue)]=1
         
         #calculate in queues
-        self.inqueue=np.ones(self.instances)
+        self.inqueue=np.ones((self.instances,1))
         self.inqueue[left_queue]=0
                
 
