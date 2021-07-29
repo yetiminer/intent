@@ -2,16 +2,42 @@ from collections import deque, namedtuple
 import numpy as np
 from random import random
 from intent.TQ import TillQueue
+import numpy.ma as ma
 
 Chit=namedtuple('Chit',['name','entrytime'])
 Receipt=namedtuple('Receipt',['name','entrytime','exittime','status'])
 
 class FishAuction():
-    def __init__(self,departure_rate,arrival_rate,fire_rate,q_names=None):
+    #class variable
+    arrival_functions={'poisson':np.random.poisson,
+    }
+
+    def __init__(self,departure_rate=None,arrival_rate=None,fire_rate=None,q_names=None,arrival_func='poisson',q_num=None):
         assert len(departure_rate)==len(arrival_rate)
         self.arrival_rate=arrival_rate
         self.departure_rate=departure_rate
-        self.q_num=len(departure_rate)
+        
+        
+        if arrival_func=='poisson':       
+            self.q_num=len(departure_rate)
+            self.arrival_func=self.arrival_functions['poisson']    
+            
+        else: 
+            try:
+                assert arrival_func is not None
+                self.arrival_func=arrival_func
+            except AssertionError:
+                print("If departure rate is not listlike, must provide an arrival_func argument")
+                raise
+                
+            try:
+                assert q_num is not None
+                self.q_num=q_num
+            except AssertionError:
+                print("A q_num argument must be provided when arrival_func is specified")
+                raise
+            
+        
         if q_names is None: q_names=range(1,self.q_num+1)
         self.queues={q: TillQueue(q,d,a) for q,d,a in zip(q_names,departure_rate,arrival_rate)}
         self.customer_count=1
@@ -24,7 +50,8 @@ class FishAuction():
         self.new_receipts=[]
         
     def __repr__(self):
-        return str(f'Queues {self.queues}, Records where {self.customer_where}')
+        return str(self.get_state())
+        #return str(f'Queues {self.queues}, Records where {self.customer_where}')
         
     def __eq__(self,other):
         #note - makes this unhashable apparently https://stackoverflow.com/questions/1227121/compare-object-instances-for-equality-by-their-attributes
@@ -60,6 +87,10 @@ class FishAuction():
                state['where']=self.where_is(cust_id)
             return state
     @property
+    def state(self):
+        return self.get_state(0)
+            
+    @property
     def anon_state(self):
         state= {'entries':{q:len(ch) for q,ch in self.new_chits.items()},
                     'exits':{q:len(rec) for q,rec in self.new_receipts.items()},
@@ -81,7 +112,7 @@ class FishAuction():
         return customer,chit
     
     def decide_fire(self):
-        
+        # a process to decide when it is on fire. 
         fire=False
         if random()<self.fire_rate:
             fire=True
@@ -127,7 +158,7 @@ class FishAuction():
         chit_d={}
         
         #get the number of arrivals for each queue
-        arrivals=np.random.poisson(self.arrival_rate)
+        arrivals=self.arrival_func(self.arrival_rate)
         
         #iterate through each queue and associated arrival to add customers
         for q_num,q_arrivals in zip(range(1,self.q_num+1),arrivals):
@@ -242,4 +273,6 @@ class FA_tests():
             assert cid in self.FA.customer_where  
         return True
         
-    
+
+
+           

@@ -3,11 +3,17 @@ import numpy as np
 from random import random
 
 class TillQueue():
-    def __init__(self,name,departure_rate,arrival_rate):
+    #class variable
+    departure_functions={'poisson':np.random.poisson,
+    }
+
+
+    def __init__(self,name,departure_rate,arrival_rate,departure_func='poisson'):
         self.name=name
         self.q=deque()
         self.entry_times={}
         self.departure_rate=departure_rate
+        self.departure_func=self.departure_functions['poisson']
         self.arrival_rate=arrival_rate #for reference
         
     def __repr__(self):
@@ -42,7 +48,7 @@ class TillQueue():
         
     def serve(self,num=None):
         x=[]
-        if num is None: num=np.random.poisson(self.departure_rate)
+        if num is None: num=self.departure_func(self.departure_rate)
         if num>0:
             for i in range(num):
                 try:

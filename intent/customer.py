@@ -1,4 +1,6 @@
 from intent.fishauction import FishAuction, FA_tests
+from intent.fishauctionlight import FishMarketLight
+from intent.stateencoders import StateEncoder,StateEncoderArray,StateFormat, FML_State
 from intent.TQ import TillQueue
 import gym
 from gym.spaces import Space, MultiBinary, Discrete
@@ -14,13 +16,24 @@ class  Customer(gym.Env):
         2:'enter_queue_2'
     }
     
-    def __init__(self,name,departure_rate,arrival_rate,fire_rate,time_limit=100,rw_exit_pay=1,rw_exit_no_pay=10):
+    FM={'standard':FishAuction,
+        'array':FishMarketLight}
+        
+    SE={'standard':StateEncoder,
+        'array':StateEncoderArray}
+        
+    
+    
+    def __init__(self,name,departure_rate,arrival_rate,fire_rate,time_limit=100,rw_exit_pay=1,rw_exit_no_pay=10,fm='standard'):
         self.time=0
         self.cust_id=0
         self.time_limit=time_limit
         self.departure_rate=departure_rate
         self.arrival_rate=arrival_rate
         self.fire_rate=fire_rate
+        
+        #number of queues
+        self.q_num=len(departure_rate)
         
         #record the rewards
         self.rw_exit_pay=rw_exit_pay
@@ -29,21 +42,41 @@ class  Customer(gym.Env):
         self.observation_space=ObservationSpace(3) ###### not correct
         self.action_space=Discrete(3)
         self.current_queue=0
-        self.se=StateEncoder()
         
+        #select the correct state encoder
+        self.se=self.SE[fm]
+        
+        self.fa_name=fm
+       
         self.initiate_state()
+        
+    @property
+    def rewards(self):
+        return f'Exit paying: {self.rw_exit_pay} Exit without paying: {self.rw_exit_no_pay}'
         
     def reset(self):
         self.initiate_state()
         return self._return_array()
     
+    @property
+    def pretty_state(self):
+        state=self.state
+        if len(state.shape)==0:
+            return StateFormat(*state[0:5],state[5:5+self.q_num],state[5+self.q_num:])
+        else:
+            return FML_State(*[np.expand_dims(a,1) if len(a.shape)==1 else a for a in self.fa.state])
+    
     def initiate_state(self):
+        
         self.time=0
-        self.fa=FishAuction(self.departure_rate,self.arrival_rate,self.fire_rate)
+        self.fa_name
+        
+        self.fa=self.FM[self.fa_name](departure_rate=self.departure_rate,arrival_rate=self.arrival_rate,fire_rate=self.fire_rate)
         self.fa.init_queues(10)
-        self.raw_state=self.fa.get_state(self.cust_id)
+        
+        self.raw_state=self.fa.state
         self.state=self.se.encode_state(self.raw_state)
-        self.pretty_state=StateFormat(*self.state)
+        #self.pretty_state=StateFormat(*self.state)
     
     def _return_array(self):
         return np.array(self.state)
@@ -56,7 +89,7 @@ class  Customer(gym.Env):
         
         self.raw_state=self.fa.step(fancy=False,cust_ID=0)
         self.state=self.se.encode_state(self.raw_state)
-        self.pretty_state=StateFormat(*self.state)
+        #self.pretty_state=StateFormat(*self.state)
         
         reward=self.get_rewards()
         done=self.done_check()
@@ -94,7 +127,7 @@ class  Customer(gym.Env):
         if state.exit:
             if  state.ewop: 
                 reward=self.rw_exit_no_pay
-                print("fire!")
+                
             elif state.paid: reward=self.rw_exit_pay
         
         return reward
@@ -105,37 +138,9 @@ class ObservationSpace(MultiBinary):
                 x = np.array(x)  # Promote list to array for contains check
             return ((x==0) | (x==1)).all()        
 
-StateFormat=namedtuple('StateFormat',['exit','ewop','paid','in_queue','q_1_pos','q_2_pos'])        
+#StateFormat=namedtuple('StateFormat',['exit','ewop','paid','in_queue','q_pos','q_len'])        
         
-class StateEncoder():
-    def  __init__(self):
-        pass
-    
-    @staticmethod
-    def check_exit(state):
-        exit=False
-        ewop=False
-        paid=False
-        
-        if state['exits']!=[]:
-            for k, li in state['exits'][0].items():
-                if 0 in li[0,:]:
-                    exit=True
-                    if state['exits'][1]=='Paid': paid=True
-                    elif state['exits'][1]=='EWOP': ewop=True
-                    break
 
-        return np.array((exit,ewop,paid))
-    
-    @staticmethod
-    def get_position(state):
-        wi=state['where']   
-        wia=np.zeros(3)#####!!!!
-        if wi!=(0,0): wia[0]=1
-        #remember the first queue is labelled 1
-        wia[wi[0]]=wi[1] #returns zeros if given zeros
-        return wia
-    
-    @staticmethod
-    def encode_state(state):
-        return np.hstack((StateEncoder.check_exit(state),StateEncoder.get_position(state)))
+        
+
+        
