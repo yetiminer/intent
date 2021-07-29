@@ -229,12 +229,7 @@ class FishMarketLight():
         q_col=queue_changes[valid_entries]-1 #columns
         q_row=q_idx[valid_entries] #rows
         q_keep_row=q_idx[~valid_entries]
-        
-        #use fancy index to work out array of adding positions
-        new_positions=np.zeros(self.dims)
-        new_positions[q_row,q_col]=1
-        
-      
+              
         #calculate new position mask   
         position_mask=np.ones(self.dims)
         #firstly the unchanged positions
@@ -248,7 +243,6 @@ class FishMarketLight():
         position_change=-(position_mask-1)-(~self.position.mask)          
         self.queues+=position_change
         
-        
         #calculate new position data
         position_data=np.zeros(self.dims)
         #firstly unchanged positions
@@ -256,5 +250,6 @@ class FishMarketLight():
         #now the changed positions
         position_data[q_row,:]=self.queues[q_row,:]
         
-        position=ma.masked_array(position_data,position_mask)    
-        inqueue=self.position.any(axis=1).data
+        self.position=ma.masked_array(position_data,position_mask)    
+        self.inqueue=self.position.any(axis=1).data
+        
