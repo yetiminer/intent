@@ -217,23 +217,44 @@ class FishMarketLight():
         if fancy: return self.pretty_state    
         else: return self.state
 
-    def enter_queue(self,q_num):
+    def enter_queue(self,queue_changes):
+        
+        #create index array
+        q_idx=np.arange(self.instances)
+
+        #determine which of raw input is valid
+        valid_entries=queue_changes-1>-1
+
+        #work out fancy index
+        q_col=queue_changes[valid_entries]-1 #columns
+        q_row=q_idx[valid_entries] #rows
+        q_keep_row=q_idx[~valid_entries]
+        
+        #use fancy index to work out array of adding positions
+        new_positions=np.zeros(self.dims)
+        new_positions[q_row,q_col]=1
+        
+      
+        #calculate new position mask   
+        position_mask=np.ones(self.dims)
+        #firstly the unchanged positions
+        position_mask[q_keep_row,:]=self.position.mask[q_keep_row,:]
+        #now the changed  positions
+        position_mask[q_row,q_col]=0
+        
         
         #deduct from those instances where in queue
-        self.queues-=~self.position.mask
+        #add back new queue position
+        position_change=-(position_mask-1)-(~self.position.mask)          
+        self.queues+=position_change
         
-        self.position=ma.masked_array(np.zeros(self.dims),np.ones(self.dims))
-        #advanced indexing
-        self.position.mask[np.arange(self.instances),q_num-1]=0
-                                              
-        add_pos=np.zeros(self.q_num)
-        add_pos[q_num-1]=1
-       
-        #record new addition to queue
-        self.queues+=add_pos
-                                   
-        #record new position at back of queue
-        self.position+=self.queues 
         
-        #record that in a queue
-        self.inqueue=q_num>0
+        #calculate new position data
+        position_data=np.zeros(self.dims)
+        #firstly unchanged positions
+        position_data[q_keep_row,:]=self.position[q_keep_row,:]
+        #now the changed positions
+        position_data[q_row,:]=self.queues[q_row,:]
+        
+        position=ma.masked_array(position_data,position_mask)    
+        inqueue=self.position.any(axis=1).data
