@@ -59,7 +59,7 @@ class FishMarketLight():
     
     @property
     def state(self):
-        return self.fire,self.exit,self.EWOP,self.inqueue, self.position,self.queues,self.arrivals,self.departures
+        return np.expand_dims(self.fire,1),self.exit,self.EWOP,self.inqueue, self.position,self.queues,self.arrivals,self.departures
         
     @property
     def pretty_state(self):
@@ -137,10 +137,10 @@ class FishMarketLight():
         
     def decide_fire(self):
         # a process to decide when it is on fire. 
-        fire=np.zeros((self.instances,1))
+        #fire=np.zeros((self.instances,1))
         fire=np.random.random(self.instances)<self.fire_rate
 
-        return fire.flatten()
+        return fire
         
     def process_arrivals(self):
         #process other arrivals

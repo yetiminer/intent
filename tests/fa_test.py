@@ -148,7 +148,7 @@ def test_fire_rate_m_arr(instances=10):
     for i in range(its):
         state=fa.step(fancy=True)
          
-        counter+=state.fire
+        counter+=state.fire.flatten()
     #return counter/its
     try:
         assert counter/its==approx(fire_rate,abs=0.05) 
