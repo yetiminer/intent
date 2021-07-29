@@ -59,7 +59,7 @@ class FishMarketLight():
     
     @property
     def state(self):
-        return np.expand_dims(self.fire,1),self.exit,self.EWOP,self.inqueue, self.position,self.queues,self.arrivals,self.departures
+        return self.fire.reshape(self.instances,1),self.exit,self.EWOP,self.inqueue, self.position,self.queues,self.arrivals,self.departures
         
     @property
     def pretty_state(self):
