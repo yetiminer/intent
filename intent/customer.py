@@ -57,7 +57,7 @@ class  Customer(gym.Env):
         instances=1
         if self.fa_name=='array':
            dims=self.departure_rate.shape
-           if len(dims)==2: instances=dims[1]
+           instances=dims[0]
         return  instances
         
     @property
@@ -149,10 +149,10 @@ class  Customer(gym.Env):
         if state is None: state=self.pretty_state
         reward=np.zeros(self.instances)
         #who left without paying
-        ewops_tf=np.logical_and(state.exit,state.ewop==1)
+        ewops_tf=np.logical_and(state.exit,state.ewop==1).flatten()
         reward[ewops_tf]=self.rw_exit_no_pay
         #who left and paid
-        exit_tf=np.logical_and(state.exit,state.ewop==0)
+        exit_tf=np.logical_and(state.exit,state.ewop==0).flatten()
         reward[exit_tf]=self.rw_exit_pay
         
         return reward
