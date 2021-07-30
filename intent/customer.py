@@ -133,18 +133,6 @@ class  Customer(gym.Env):
             self.fa.enter_queue(action)
             
         
-        
-    # def get_rewards(self,state=None):
-        # if state is None: state=self.pretty_state
-        # reward=0
-        # if state.exit:
-            # if  state.ewop: 
-                # reward=self.rw_exit_no_pay
-                
-            # elif state.paid: reward=self.rw_exit_pay
-        
-        # return reward
-        
     def get_rewards(self,state=None):
         if state is None: state=self.pretty_state
         reward=np.zeros(self.instances)
@@ -164,8 +152,7 @@ class ObservationSpace(MultiBinary):
             return ((x==0) | (x==1)).all()        
 
 class MultiDiscrete(Discrete):
-       def contains(self,x):
-       
+       def contains(self,x):       
             if isinstance(x,(int,list,tuple,np.ndarray,np.generic)):
                 x=np.array(x)
             else:
@@ -177,6 +164,9 @@ class MultiDiscrete(Discrete):
                 print("Array should only contain integers")
                 return False
             return np.logical_and(x>=0 ,x<self.n).all()
+
+       def sample(self,i=1):
+            return np.random.randint(0,self.n,i)
 
 #StateFormat=namedtuple('StateFormat',['exit','ewop','paid','in_queue','q_pos','q_len'])        
         
