@@ -35,20 +35,30 @@ class  Customer(gym.Env):
         #number of queues
         self.q_num=len(departure_rate)
         
+
+        
         #record the rewards
         self.rw_exit_pay=rw_exit_pay
         self.rw_exit_no_pay=rw_exit_no_pay
                
         self.observation_space=ObservationSpace(3) ###### not correct
-        self.action_space=Discrete(3)
+        self.action_space=MultiDiscrete(3)
         self.current_queue=0
         
         #select the correct state encoder
         self.se=self.SE[fm]
         
         self.fa_name=fm
-       
+  
         self.initiate_state()
+    
+    @property  
+    def instances(self):
+        instances=1
+        if self.fa_name=='array':
+           dims=self.departure_rate.shape
+           if len(dims)==2: instances=dims[1]
+        return  instances
         
     @property
     def rewards(self):
@@ -108,27 +118,42 @@ class  Customer(gym.Env):
         #check action is valid
         err_msg = "%r (%s) invalid" % (action, type(action))
         assert self.action_space.contains(action), err_msg
-        #if action==0: print('waiting')
-        if action>0:
-            
-            if self.pretty_state.in_queue:
-                #print('swapping queue')
-                self.fa.swap_queue(self.cust_id,action)
-            else:
-                #print("entering queue")
-                self.fa.new_arrival(action,self.cust_id)
-                self.current_queue=action
+        if self.fa_name=='standard':
+            if action>0:
+                
+                if self.pretty_state.in_queue:
+                    #print('swapping queue')
+                    self.fa.swap_queue(self.cust_id,action)
+                else:
+                    #print("entering queue")
+                    self.fa.new_arrival(action,self.cust_id)
+                    self.current_queue=action
+        elif self.fa_name=='array':
+            #swapping or entering or doing nothing all handled at fa level.
+            self.fa.enter_queue(action)
             
         
+        
+    # def get_rewards(self,state=None):
+        # if state is None: state=self.pretty_state
+        # reward=0
+        # if state.exit:
+            # if  state.ewop: 
+                # reward=self.rw_exit_no_pay
+                
+            # elif state.paid: reward=self.rw_exit_pay
+        
+        # return reward
         
     def get_rewards(self,state=None):
         if state is None: state=self.pretty_state
-        reward=0
-        if state.exit:
-            if  state.ewop: 
-                reward=self.rw_exit_no_pay
-                
-            elif state.paid: reward=self.rw_exit_pay
+        reward=np.zeros(self.instances)
+        #who left without paying
+        ewops_tf=np.logical_and(state.exit,state.ewop==1)
+        reward[ewops_tf]=self.rw_exit_no_pay
+        #who left and paid
+        exit_tf=np.logical_and(state.exit,state.ewop==0)
+        reward[exit_tf]=self.rw_exit_pay
         
         return reward
         
@@ -137,6 +162,21 @@ class ObservationSpace(MultiBinary):
             if isinstance(x, (list,State)):
                 x = np.array(x)  # Promote list to array for contains check
             return ((x==0) | (x==1)).all()        
+
+class MultiDiscrete(Discrete):
+       def contains(self,x):
+       
+            if isinstance(x,(int,list,tuple,np.ndarray,np.generic)):
+                x=np.array(x)
+            else:
+                print('action should be list like or array')
+                return False
+            try:
+                assert x.dtype.char in np.typecodes["AllInteger"]
+            except AssertionError:
+                print("Array should only contain integers")
+                return False
+            return np.logical_and(x>=0 ,x<self.n).all()
 
 #StateFormat=namedtuple('StateFormat',['exit','ewop','paid','in_queue','q_pos','q_len'])        
         
