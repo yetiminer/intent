@@ -1,5 +1,6 @@
 import numpy as np
 from intent.customer  import Customer
+from copy import deepcopy
 
 departure_rate=[2,2]
 arrival_rate=[2,2]
@@ -17,7 +18,7 @@ def test_basic():
         
         prev_state=cust.pretty_state
         action=cust.action_space.sample()
-        state,reward,done,info=cust.step(action)
+        state,reward,done,info=cust.step(action[0])
         curr_state=cust.pretty_state
         try:
             #check that the thing times out when expected
@@ -86,3 +87,57 @@ def test_enter_queue():
             if done: break
                 
         assert cust.time>=cust.time_limit
+        
+def test_cust_array():
+    departure_rate=np.array([[2,2],[2,2],[2,2]])
+    arrival_rate=departure_rate
+    fire_rate=np.array((0.1,0.05,0.05))
+    
+    name='hal'
+    cust=Customer(name,departure_rate,arrival_rate,fire_rate,time_limit=100,rw_exit_pay=1,rw_exit_no_pay=10,fm='array')
+
+    for i in range(time_limit+2):
+        
+        prev_state=deepcopy(cust.pretty_state)
+        actions=cust.action_space.sample(cust.instances)
+        state,reward,done,info=cust.step(actions)
+        curr_state=cust.pretty_state
+        try:
+            #check that the thing times out when expected
+            t=1
+            if cust.time<time_limit: assert not(done) 
+            t=2
+            if cust.time==time_limit: assert done
+
+            #check  reward for exiting wop
+            tf_ewop=(curr_state.ewop==1).flatten()
+            t=3
+            assert (reward[tf_ewop]==rw_exit_no_pay).all()
+            
+            
+            t=4
+            assert curr_state.exit[tf_ewop].all()
+            tf_ewop=reward==rw_exit_no_pay #assumes that reward ewop is unique
+            t=5
+            assert np.logical_and(curr_state.ewop,curr_state.exit).all()    
+            #check reward for exiting
+            tf_p=np.logical_and(curr_state.exit,~tf_ewop)
+            t=6
+            assert (reward[tf_p]==rw_exit_pay).all()
+            t=7
+            assert curr_state.exit[tf_p].all()
+            tf_pay_r=reward==rw_exit_pay
+            t=8
+            assert (tf_pay_r==tf_p).all()   
+
+            #check no reward for not exiting
+            tf_iq=curr_state.inqueue==1
+            t=9
+            assert (reward[tf_iq]==0).all()
+
+            #check exits not in queue
+            tf_exit=curr.state.exit==1
+            assert (curr_state.inqueue[tf_exit]==0).all()
+            
+        except AssertionError:
+            print(prev_state,reward,state,cust.time,done,t)    
