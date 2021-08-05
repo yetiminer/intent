@@ -44,15 +44,23 @@ class  Customer(gym.Env):
         self.rw_exit_pay=rw_exit_pay
         self.rw_exit_no_pay=rw_exit_no_pay
                
-        #self.observation_space=ObservationSpace(3) ###### not correct
-        self.observation_space=ObservationSpace(low=0,high=30,shape=(1,4+4*self.q_num),dtype=np.int32)
-        self.action_space=MultiDiscrete(3)
-        self.current_queue=0
+
         
         #select the correct state encoder
         self.se=self.SE[fm]
         
         self.fa_name=fm
+        
+        self.flatten=False
+        if self.instances==1:
+            self.flatten=True
+            
+        #self.observation_space=ObservationSpace(3) ###### not correct
+        if self.instances==1: obs_dims=(4+4*self.q_num,)
+        else: obs_dims=(self.instances,4+4*self.q_num)
+        self.observation_space=ObservationSpace(low=0,high=30,shape=obs_dims,dtype=np.int32)
+        self.action_space=MultiDiscrete(3)
+        self.current_queue=0 #not used in array form
   
         self.initiate_state()
     
@@ -89,7 +97,7 @@ class  Customer(gym.Env):
         self.fa.init_queues(10)
         
         self.raw_state=self.fa.state
-        self.state=self.se.encode_state(self.raw_state)
+        self.state=self.se.encode_state(self.raw_state,flatten=self.flatten)
         #self.pretty_state=StateFormat(*self.state)
     
     def _return_array(self):
@@ -105,12 +113,12 @@ class  Customer(gym.Env):
         self.process_action(action)
         
         self.raw_state=self.fa.step(fancy=False,cust_ID=0)
-        self.state=self.se.encode_state(self.raw_state)
+        self.state=self.se.encode_state(self.raw_state,flatten=self.flatten)
         #self.pretty_state=StateFormat(*self.state)
         
         reward=self.get_rewards()
         done=self.done_check()
-        info=None
+        info={}
         
         return self.state,reward,done,info
         
@@ -150,6 +158,9 @@ class  Customer(gym.Env):
         exit_tf=np.logical_and(state.exit,state.ewop==0).flatten()
         reward[exit_tf]=self.rw_exit_pay
         
+        #workaround for stablebaselines which needs float as a reward.
+        if self.instances==1: reward=reward[0]
+        
         return reward
         
 class ObservationSpace(Box):
@@ -174,7 +185,7 @@ class MultiDiscrete(Discrete):
                 return False
             return np.logical_and(x>=0 ,x<self.n).all()
 
-       def sample(self,i=1):
+       def sample(self,i=1,instances=1):
             return np.random.randint(0,self.n,i)
 
 #StateFormat=namedtuple('StateFormat',['exit','ewop','paid','in_queue','q_pos','q_len'])        

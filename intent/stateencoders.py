@@ -43,7 +43,7 @@ class StateEncoder():
         return np.array(fa_state['fire'],dtype=int)
     
     @staticmethod
-    def encode_state(fa_state):
+    def encode_state(fa_state,**kwargs):
         return np.hstack((StateEncoder.fire(fa_state),StateEncoder.check_exit(fa_state),
         StateEncoder.get_position(fa_state),
         StateEncoder.get_queue_length(fa_state)))
@@ -52,6 +52,9 @@ class StateEncoderArray():
     def __init__(self):
         pass
         
-    def encode_state(fa_state):
+    def encode_state(fa_state,flatten=False):
         d=np.hstack([np.expand_dims(a,1) if len(a.shape)==1 else a for a in fa_state]).data
-        return d.astype(int)
+        if flatten:
+            return d.astype(int).flatten()
+        else:
+            return d.astype(int)
