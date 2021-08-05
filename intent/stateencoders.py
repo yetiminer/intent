@@ -36,11 +36,11 @@ class StateEncoder():
         
     @staticmethod    
     def get_queue_length(fa_state):
-        return np.array([len(q) for _,q in fa_state['queues'].items()])
+        return np.array([len(q) for _,q in fa_state['queues'].items()],dtype=int)
         
     @staticmethod
     def fire(fa_state):
-        return np.array(fa_state['fire'])
+        return np.array(fa_state['fire'],dtype=int)
     
     @staticmethod
     def encode_state(fa_state):
@@ -53,4 +53,5 @@ class StateEncoderArray():
         pass
         
     def encode_state(fa_state):
-        return np.hstack([np.expand_dims(a,1) if len(a.shape)==1 else a for a in fa_state]).data
+        d=np.hstack([np.expand_dims(a,1) if len(a.shape)==1 else a for a in fa_state]).data
+        return d.astype(int)

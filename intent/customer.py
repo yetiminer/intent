@@ -3,7 +3,7 @@ from intent.fishauctionlight import FishMarketLight
 from intent.stateencoders import StateEncoder,StateEncoderArray,StateFormat, FML_State
 from intent.TQ import TillQueue
 import gym
-from gym.spaces import Space, MultiBinary, Discrete
+from gym.spaces import Space, MultiBinary, Discrete, Box
 import numpy as np
 from collections import namedtuple
 
@@ -33,7 +33,10 @@ class  Customer(gym.Env):
         self.fire_rate=fire_rate
         
         #number of queues
-        self.q_num=len(departure_rate)
+        if isinstance(departure_rate,np.ndarray):
+            self.q_num=departure_rate.shape[1]
+        elif isinstance(departure_rate,(list,tuple)):
+            self.q_num=len(departure_rate)
         
 
         
@@ -41,7 +44,8 @@ class  Customer(gym.Env):
         self.rw_exit_pay=rw_exit_pay
         self.rw_exit_no_pay=rw_exit_no_pay
                
-        self.observation_space=ObservationSpace(3) ###### not correct
+        #self.observation_space=ObservationSpace(3) ###### not correct
+        self.observation_space=ObservationSpace(low=0,high=30,shape=(1,4+4*self.q_num),dtype=np.int32)
         self.action_space=MultiDiscrete(3)
         self.current_queue=0
         
@@ -89,7 +93,10 @@ class  Customer(gym.Env):
         #self.pretty_state=StateFormat(*self.state)
     
     def _return_array(self):
-        return np.array(self.state)
+        if self.fa_name=='standard':
+            return np.array(self.state)
+        else:
+            return self.state
         
         
     def step(self,action):        
@@ -145,11 +152,13 @@ class  Customer(gym.Env):
         
         return reward
         
-class ObservationSpace(MultiBinary):
+class ObservationSpace(Box):
         def contains(self, x):
-            if isinstance(x, (list,tuple)):
+            if isinstance(x, list):
                 x = np.array(x)  # Promote list to array for contains check
-            return ((x==0) | (x==1)).all()        
+            return (
+                x.shape == self.shape and np.all(x >= self.low) and np.all(x <= self.high)
+            )       
 
 class MultiDiscrete(Discrete):
        def contains(self,x):       
