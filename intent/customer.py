@@ -147,7 +147,7 @@ class  Customer(gym.Env):
         
 class ObservationSpace(MultiBinary):
         def contains(self, x):
-            if isinstance(x, (list,State)):
+            if isinstance(x, (list,tuple)):
                 x = np.array(x)  # Promote list to array for contains check
             return ((x==0) | (x==1)).all()        
 
