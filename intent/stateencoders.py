@@ -51,6 +51,10 @@ class StateEncoder():
 class StateEncoderArray():
     def __init__(self):
         pass
+    
+    @property
+    def _fields(self):
+        return FML_State._fields
         
     def encode_state(fa_state,flatten=False):
         d=np.hstack([np.expand_dims(a,1) if len(a.shape)==1 else a for a in fa_state]).data

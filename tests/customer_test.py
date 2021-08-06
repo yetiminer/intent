@@ -1,6 +1,8 @@
 import numpy as np
 from intent.customer  import Customer
 from copy import deepcopy
+from intent.stateencoders import FML_State
+import pandas as pd
 
 departure_rate=[2,2]
 arrival_rate=[2,2]
@@ -140,4 +142,121 @@ def test_cust_array():
             assert (curr_state.inqueue[tf_exit]==0).all()
             
         except AssertionError:
-            print(prev_state,reward,state,cust.time,done,t)    
+            print(prev_state,reward,state,cust.time,done,t)
+
+def make_state_names(self,q_num,others,prev=False):
+    fields=self._fields
+    if prev:
+        
+        state_names=list(fields[:4])+[l+'_'+str(i) for l in fields[4:] for i in range(1,q_num+1)]
+        state_names=others+state_names+["_"+l for l in state_names]
+    else:
+        state_names=others+list(fields[:4])+[l+'_'+str(i) for l in fields[4:] for i in range(1,q_num+1)]
+    return state_names
+
+def messy_classifier(inst1):
+    inst1['diff']=(inst1['_q_len_1']+inst1['q_arrivals_1']-inst1['q_departures_1']).clip(0,np.inf)-inst1['q_len_1']
+    
+    swap_from_1_to_2=(inst1['_in_queue']==1)&(inst1['_q_pos_1']>0)&(inst1['Action']==2)&(inst1['in_queue']==1)
+    go_to_back_of_1=(inst1['_in_queue']==1)&(inst1['_q_pos_1']>0)&(inst1['Action']==1)&(inst1['in_queue']==1)
+    enter_1=(inst1['_in_queue']==0)&(inst1['Action']==1)&(inst1['in_queue']==1)
+    enter_1_immediately_exit=(inst1['Action']==1)&(inst1['exit']==1)
+    enter_1_EWOP=(inst1['Action']==1)&(inst1['fire']==1)
+
+    swap_from_2_to_1=(inst1['_in_queue']==1)&(inst1['_q_pos_2']>0)&(inst1['Action']==1)&(inst1['in_queue']==1)
+    go_to_back_of_2=(inst1['in_queue']==1)&(inst1['_q_pos_2']>0)&(inst1['Action']==2)&(inst1['in_queue']==1)
+    enter_2=(inst1['_in_queue']==0)&(inst1['Action']==2)&(inst1['in_queue']==1)
+    enter_2_immediately_exit=(inst1['Action']==2)&(inst1['exit']==1)
+    enter_2_EWOP=(inst1['Action']==2)&(inst1['fire']==1)
+
+    
+    
+    inst1.loc[:,'Class']="Unknown"
+    inst1['Class'].loc[swap_from_1_to_2]="Swap 1 to 2"
+    inst1['Class'].loc[go_to_back_of_1]="go_to_back_of_1"
+    inst1['Class'].loc[enter_1_immediately_exit]="enter_1_exit"
+    inst1['Class'].loc[enter_1]="enter 1"
+    inst1['Class'].loc[enter_1_EWOP]="enter_1_EWOP"
+
+    inst1['Class'].loc[swap_from_2_to_1]="Swap 2 to 1"
+    inst1['Class'].loc[go_to_back_of_2]="go_to_back_of_2"
+    inst1['Class'].loc[enter_2]="enter_2"
+    inst1['Class'].loc[enter_2_immediately_exit]="enter_2_exit"
+    inst1['Class'].loc[enter_2_EWOP]="enter_2_EWOP"
+    
+    return inst1
+
+def check_on_diffs(inst1):
+    tf1=inst1['diff']!=0
+    assert ((inst1.Class=="Unknown")&tf1).all()==False
+    return 
+
+def exit_when_expected_when_already_in_queue(df,q_num):
+
+    for i in range(1,q_num+1):
+
+        action1=df.Action==i
+        was_in_q1=df['_q_pos_'+str(i)]>0
+        departure_due=(df['_q_len_'+str(i)]+df['q_arrivals_' + str(i)]-df['q_departures_'+str(i)])<0
+        not_ewop=df.ewop==0
+
+        #['Action','ewop','exit','_in_queue','in_queue','_q_len_1','q_arrivals_1','q_departures_1','q_len_1','Class','diff']
+
+        (df[action1&was_in_q1&departure_due&not_ewop].exit==1).all()
+
+
+def test_cust_array_logic():
+    time_limit=1000
+    departure_rate=np.array([[2,2],[2,2],[2,2]])
+    arrival_rate=departure_rate
+    fire_rate=np.array((0.1,0.05,0.05))
+    
+    
+    name='hal'
+    cust=Customer(name,departure_rate,arrival_rate,fire_rate,time_limit=time_limit,rw_exit_pay=1,rw_exit_no_pay=10,fm='array')
+    instances=np.arange(1,cust.instances+1).reshape(cust.instances,1)
+    
+    history=[]
+    state=cust.state
+    
+    for i in range(time_limit+2):
+        
+        prev_state=deepcopy(state)
+        actions=cust.action_space.sample(cust.instances)
+        state,reward,done,info=cust.step(actions)
+        
+                
+        history.append(np.hstack([instances,actions.reshape(cust.instances,1),state,prev_state]))
+    
+    fields=make_state_names(FML_State,2,['Instance','Action'],prev=True)
+    df=pd.DataFrame(np.vstack(history),columns=fields)
+    
+    men=df.mean()
+    
+    try:
+        assert men.fire>=men.ewop
+    except AssertionError:
+        print("Fire rate should be as large as EWOP")
+        raise AssertionError
+
+    try:
+        assert (men>0).all()
+    except AssertionError:
+        print("Figures should be non-zero on average")
+        raise AssertionError
+    
+    # try:
+        # assert (df.min()>=0).all() 
+    # except AssertionError:
+        # print("Non negative data required")
+        # return df
+        # #raise AssertionError
+        
+    df=messy_classifier(df)
+    
+    check_on_diffs(df)
+    
+    exit_when_expected_when_already_in_queue(df,cust.q_num)
+    
+    return df
+            

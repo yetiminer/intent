@@ -149,13 +149,11 @@ class FishMarketLight():
         
     def process_departures(self):
         #process departure
-        #if  self.fire:
         #when there is a fire everyone departs
         self.departures[self.fire,:]=self.queues[self.fire,:]
         #leaving noone in the queue
-            #self.queues[self.fire,:]=np.zeros(self.q_num)
             
-        #for the remainder calculute normal departures
+        #for the remainder calculate normal departures
         new_departures=self.departure_func(self.departure_rate,self.dims)
         #implicitly using property that departure func is memoryless
         self.departures[~self.fire,:]=new_departures[~self.fire,:]
@@ -192,22 +190,19 @@ class FishMarketLight():
         #calculate position
         self.position-=self.departures
         
-        #calculate outcome
+        #calculate outcome    
+        left_queue=(self.position<=0).any(axis=1)
         
-        # if self.position.any()<=0:
-            # if self.fire: self.EWOP=True
-            # else: self.Exit=True
-            # self.inqueue=False
-            
-        left_queue=(self.position<0).any(axis=1)
+        #censor positions
+        self.position=np.clip(self.position,0,np.inf)
         
         #fill the EWOPs according to fire.
         self.EWOP=np.zeros((self.instances,1))
         self.EWOP[np.logical_and(self.fire,left_queue)]=1
         
         #fill the exits according to not EWOP and left_queue
-        self.Exit=np.zeros((self.instances,1))
-        self.Exit[np.logical_and(~self.fire,left_queue)]=1
+        self.exit=np.zeros((self.instances,1))
+        self.exit[np.logical_and(~self.fire,left_queue)]=1
         
         #calculate in queues
         self.inqueue=np.ones((self.instances,1))
@@ -242,6 +237,7 @@ class FishMarketLight():
         #add back new queue position
         position_change=-(position_mask-1)-(~self.position.mask)          
         self.queues+=position_change
+        self.queues=np.clip(self.queues,0,None)
         
         #calculate new position data
         position_data=np.zeros(self.dims)

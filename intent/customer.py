@@ -83,6 +83,13 @@ class  Customer(gym.Env):
     @property
     def pretty_state(self):
         state=self.state
+        return self.make_pretty_state(state)
+        # if self.fa_name=='standard':
+            # return StateFormat(*state[0:5],state[5:5+self.q_num],state[5+self.q_num:])
+        # else:
+            # return FML_State(*[np.expand_dims(a,1) if len(a.shape)==1 else a for a in self.fa.state])
+            
+    def make_pretty_state(self,state):
         if self.fa_name=='standard':
             return StateFormat(*state[0:5],state[5:5+self.q_num],state[5+self.q_num:])
         else:
