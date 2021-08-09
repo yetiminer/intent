@@ -259,4 +259,33 @@ def test_cust_array_logic():
     exit_when_expected_when_already_in_queue(df,cust.q_num)
     
     return df
+    
+def test_make_customer_array():
+    #make customer array takes a single customer instance and makes an array version of it. 
+    departure_rate=np.array([[2,2]])
+    arrival_rate=departure_rate
+    fire_rate=np.array((0.1))
+
+    name='hal'
+    cust=Customer(name,departure_rate,arrival_rate,
+                  fire_rate,time_limit=100,rw_exit_pay=1,rw_exit_no_pay=10,
+                  fm='array')
+    
+    
+    instances=10
+    cust_array=Customer.make_customer_array(cust,instances)
+    assert cust_array.instances==instances
+
+    for i in range(instances):
+        assert (cust_array.departure_rate[i,:]==cust.departure_rate).all() 
+        assert (cust_array.arrival_rate[i,:]==cust.arrival_rate).all() 
+        assert (cust_array.fire_rate[i,:]==cust.fire_rate).all() 
+
+
+    assert cust_array.time_limit==cust.time_limit
+    assert cust_array.rw_exit_pay==cust.rw_exit_pay
+    assert cust_array.rw_exit_no_pay==cust.rw_exit_no_pay    
+    assert cust_array.time_limit==cust.time_limit
+    assert cust_array.fa_name=='array'
+    
             

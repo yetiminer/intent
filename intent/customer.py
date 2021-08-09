@@ -22,9 +22,11 @@ class  Customer(gym.Env):
     SE={'standard':StateEncoder,
         'array':StateEncoderArray}
         
-    
+    StateFormat={'standard':StateFormat,'array':FML_State}
     
     def __init__(self,name,departure_rate,arrival_rate,fire_rate,time_limit=100,rw_exit_pay=1,rw_exit_no_pay=10,fm='standard'):
+        
+        self.name=name
         self.time=0
         self.cust_id=0
         self.time_limit=time_limit
@@ -48,6 +50,7 @@ class  Customer(gym.Env):
         
         #select the correct state encoder
         self.se=self.SE[fm]
+        self.state_format=self.StateFormat[fm]
         
         self.fa_name=fm
         
@@ -63,6 +66,16 @@ class  Customer(gym.Env):
         self.current_queue=0 #not used in array form
   
         self.initiate_state()
+    
+    def _info(self):
+        return dict(name=self.name,departure_rate=self.departure_rate,arrival_rate=self.arrival_rate,fire_rate=self.fire_rate,
+        time_limit=self.time_limit,rw_exit_pay=self.rw_exit_pay,rw_exit_no_pay=self.rw_exit_no_pay,fm=self.fa_name)
+    
+    def __repr__(self):
+        return str(self._info())
+        
+    
+    
     
     @property  
     def instances(self):
@@ -170,6 +183,24 @@ class  Customer(gym.Env):
         
         return reward
         
+    @staticmethod   
+    def make_customer_array(cust,instances):
+        #takes a single customer instance and makes an array of it
+    
+        #this is only going to work if it is a customer array
+        assert type(cust)==Customer
+        assert cust.fa_name=='array'
+        
+        name=cust.name+' '+str(instances)+' array'
+        departure_rate=np.vstack([cust.arrival_rate for i in range(instances)])
+        arrival_rate=np.vstack([cust.departure_rate for i in range(instances)])
+        fire_rate=np.vstack([cust.fire_rate for i in range(instances)])
+        time_limit=cust.time_limit
+        rw_exit_pay=cust.rw_exit_pay
+        rw_exit_no_pay=cust.rw_exit_no_pay
+        fm='array'
+        return Customer(name,departure_rate,arrival_rate,fire_rate,time_limit,rw_exit_pay,rw_exit_no_pay,fm=fm)
+    
 class ObservationSpace(Box):
         def contains(self, x):
             if isinstance(x, list):
